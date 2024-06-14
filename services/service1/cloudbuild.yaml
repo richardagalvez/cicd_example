@@ -1,0 +1,62 @@
+steps:
+  # Build and push service1 image to GCP Artifact Registry
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - "--no-cache"
+      - "-t"
+      - >-
+        $_REGION-docker.pkg.dev/$PROJECT_ID/$_REGISTRY_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - services/service1
+      - "-f"
+      - services/service1/Dockerfile
+    id: Build-Service1
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - >-
+        $_REGION-docker.pkg.dev/$PROJECT_ID/$_REGISTRY_NAME/$_SERVICE_NAME:$COMMIT_SHA
+    id: Push-Service1
+
+  # Deploy Service 1 to Cloud Run
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    args:
+      - run
+      - deploy
+      - $_SERVICE_NAME
+      - --image=$_REGION-docker.pkg.dev/$PROJECT_ID/$_REGISTRY_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - "--set-env-vars=BUILD_ID=${BUILD_ID},COMMIT_SHA=${COMMIT_SHA},PROJECT_ID=${PROJECT_ID},BRANCH_NAME=${BRANCH_NAME},TAG_NAME=${TAG_NAME}"
+      - "--set-secrets=MY_SECRET=$_MY_SECRET_NAME:latest"
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --platform=$_PLATFORM
+      - --max-instances=25
+      - --memory=512Mi
+      - --concurrency=10
+      - --cpu-boost
+      - --execution-environment=gen2
+      - --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcp-build-id=$BUILD_ID,gcp-trigger-id=$_TRIGGER_NAME
+      - --region=$_REGION
+      - --timeout=15m
+    id: Deploy-Orchestrator
+    entrypoint: gcloud
+
+images:
+  - "$_REGION-docker.pkg.dev/$PROJECT_ID/$_REGISTRY_NAME/$_SERVICE_NAME:$COMMIT_SHA"
+
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _PLATFORM: managed
+  _SERVICE_NAME: service1
+  _REGISTRY_NAME: my-registry
+  _MY_SECRET_NAME: MY_SECRET_NAME # Secret on GCP secret manager
+  ## Set the following environment variables in the Cloud Build Trigger:
+  # _REGION: us-central1
+
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - service1
