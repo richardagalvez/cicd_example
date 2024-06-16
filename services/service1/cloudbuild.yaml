@@ -38,7 +38,7 @@ steps:
       - --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcp-build-id=$BUILD_ID,gcp-trigger-id=$_TRIGGER_NAME
       - --region=$_REGION
       - --timeout=15m
-    id: Deploy-Orchestrator
+    id: Deploy-Service1
     entrypoint: gcloud
 
 images:
